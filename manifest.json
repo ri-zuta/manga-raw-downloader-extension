@@ -1,0 +1,37 @@
+{
+    "manifest_version": 3,
+    "name": "Universal Manga Downloader Pro",
+    "version": "2.3",
+    "description": "Ekstensi pengunduh komik universal dengan panel kontrol UI, mode deteksi, dan live preview.",
+    "minimum_chrome_version": "111",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "declarativeNetRequest"
+    ],
+    "host_permissions": ["<all_urls>"],
+    "declarative_net_request": {
+        "rule_resources": [
+            {
+                "id": "cors_rules",
+                "enabled": true,
+                "path": "rules.json"
+            }
+        ]
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "Buka/Tutup Panel Manga Downloader"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "run_at": "document_start",
+            "world": "MAIN"
+        }
+    ]
+}
