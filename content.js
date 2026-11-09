@@ -56,6 +56,7 @@ try {
 let uiContainer = null, gridEl = null, labelEl = null, statusEl = null;
 let downloadBtnEl = null, minBtn = null, uiContent = null, coverageEl = null;
 let retrySectionEl = null, retryGridEl = null, retryLabelEl = null, retryAllBtn = null;
+let coverageConfirmResolve = null;
 
 // =====================================================================
 // HOOK CORS - dipasang SEGERA (sebelum script situs menggambar ke canvas)
@@ -516,58 +517,82 @@ function buildUI() {
   const style = document.createElement('style');
   style.textContent = `
     #manga-downloader-ui {
-        position: fixed; bottom: 20px; right: 20px; width: 320px;
-        background: #1e1e24; color: #ffffff; font-family: sans-serif;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6); border-radius: 8px;
-        z-index: 2147483647; overflow: hidden; font-size: 13px; border: 1px solid #3a3a43;
-        display: none; flex-direction: column; max-height: 480px;
+        position: fixed; bottom: 20px; right: 20px; width: 340px;
+        background: #11151c; color: #edf2f7; font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        box-shadow: 0 18px 55px rgba(0,0,0,.55); border-radius: 14px;
+        z-index: 2147483647; overflow: hidden; font-size: 13px; border: 1px solid #293342;
+        display: none; flex-direction: column; max-height: 560px; backdrop-filter: blur(16px);
     }
     .mdui-header {
-        background: #2d2d37; padding: 10px 12px; font-weight: bold;
-        display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3a43;
+        background: linear-gradient(135deg,#1d2734,#151b24); padding: 13px 15px; font-weight: bold;
+        display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #293342;
     }
     .mdui-header-actions { display: flex; gap: 4px; }
-    .mdui-icon-btn { cursor: pointer; padding: 2px 8px; font-size: 16px; border-radius: 4px; user-select: none; }
-    .mdui-icon-btn:hover { background: #3d3d4a; }
-    .mdui-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .mdui-brand { display:flex; align-items:center; gap:9px; }
+    .mdui-brand small { margin-left:3px; color:#6cdbad; font-size:9px; letter-spacing:.12em; }
+    .mdui-brand-mark { width:29px; height:29px; display:grid; place-items:center; color:#6cdbad; background:#1c3b34; border:1px solid #285748; border-radius:8px; }
+    .mdui-brand-mark svg { width:19px; height:19px; }
+    .mdui-icon-btn { cursor: pointer; width: 28px; height: 28px; display: grid; place-items: center; font-size: 16px; border-radius: 7px; user-select: none; color:#aab6c5; }
+    .mdui-icon-btn:hover { background: #303b49; color:#fff; }
+    .mdui-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
     .mdui-row { display: flex; flex-direction: column; gap: 4px; }
-    .mdui-label { font-size: 11px; color: #aaa; font-weight: bold; text-transform: uppercase; }
-    .mdui-status { font-size: 10px; color: #777; line-height: 1.4; }
-    .mdui-select { background:#2d2d37; color:white; border:1px solid #4a4a5a; padding:5px; border-radius:4px; outline:none; }
+    .mdui-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing:.07em; }
+    .mdui-status { font-size: 10px; color: #8190a3; line-height: 1.5; }
+    .mdui-select { background:#1a222d; color:#e7edf5; border:1px solid #334153; padding:8px 9px; border-radius:7px; outline:none; }
+    .mdui-select:focus { border-color:#58c99b; box-shadow:0 0 0 2px rgba(46,213,144,.14); }
+    .mdui-input { background:#1a222d; color:#e7edf5; border:1px solid #334153; padding:8px 9px; border-radius:7px; outline:none; width:100%; box-sizing:border-box; }
+    .mdui-input:focus { border-color:#58c99b; box-shadow:0 0 0 2px rgba(46,213,144,.14); }
 
     .mdui-controls-row { display: flex; gap: 6px; margin-top: 5px; }
     .mdui-btn {
-        border: none; padding: 10px; border-radius: 4px; cursor: pointer;
-        font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 4px;
+        border: 1px solid transparent; padding: 10px 11px; border-radius: 8px; cursor: pointer;
+        font-weight: bold; font-size: 11px; letter-spacing:.035em; display: flex; align-items: center; justify-content: center; gap: 7px;
+        transition: transform .15s ease, background .15s ease;
     }
-    .mdui-btn-download { background: #2ed573; color: white; flex: 2; }
-    .mdui-btn-download:hover { background: #26af5f; }
-    .mdui-btn-download:disabled { background: #555; cursor: not-allowed; }
-    .mdui-btn-refresh { background: #4b7bec; color: white; flex: 1; }
-    .mdui-btn-refresh:hover { background: #3867d6; }
+    .mdui-btn:hover { transform:translateY(-1px); }
+    .mdui-btn-download { background: #20a875; color: #071b14; flex: 2; }
+    .mdui-btn-download:hover { background: #35c58d; }
+    .mdui-btn-download:disabled { background: #35433f; color:#91a39b; cursor: not-allowed; transform:none; }
+    .mdui-btn-refresh { background: #202b39; border-color:#334153; color: #d8e2ee; flex: 1; }
+    .mdui-btn-refresh:hover { background: #2b394b; }
+    .mdui-btn svg { width:15px; height:15px; flex:none; }
 
     .mdui-gallery-container {
-        border-top: 1px solid #3a3a43; padding: 10px;
+        border-top: 1px solid #293342; padding: 12px 14px 14px; background:#0e1218;
         overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px;
     }
     .mdui-gallery-grid {
         display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 5px;
     }
     .mdui-gallery-item {
-        position: relative; border: 1px solid #3a3a43; border-radius: 4px;
-        background: #222; overflow: hidden; height: 100px; display: flex; align-items: center; justify-content: center;
+        position: relative; border: 1px solid #293342; border-radius: 8px;
+        background: #171e28; overflow: hidden; height: 104px; display: flex; align-items: center; justify-content: center;
+        transition: border-color .15s ease, opacity .15s ease, transform .15s ease;
     }
-    .mdui-gallery-item.mdui-unselected { opacity: .55; }
+    .mdui-gallery-item:hover { border-color:#58c99b; transform:translateY(-1px); }
+    .mdui-gallery-item.mdui-unselected { opacity: .48; }
     .mdui-select-image {
         position: absolute; top: 4px; left: 4px; z-index: 1; margin: 0;
-        width: 17px; height: 17px; accent-color: #2ed573; cursor: pointer;
+        width: 17px; height: 17px; accent-color: #29bd83; cursor: pointer; filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));
     }
     .mdui-selection-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .mdui-gallery-img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .mdui-img-badge {
-        position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7);
-        color: #2ed573; font-size: 9px; padding: 1px 4px; border-radius: 2px; font-weight: bold;
+        position: absolute; bottom: 4px; right: 4px; background: rgba(8,12,17,.82);
+        color: #73e0b2; font-size: 9px; padding: 3px 5px; border-radius: 4px; font-weight: bold;
+        border:1px solid rgba(255,255,255,.08); backdrop-filter:blur(5px);
     }
+    .mdui-selection-actions { padding:7px 8px; background:#171e28; border:1px solid #293342; border-radius:7px; }
+    .mdui-coverage-confirm { padding:10px; border:1px solid #735727; border-radius:8px; background:#302719; }
+    .mdui-coverage-confirm[hidden] { display:none; }
+    .mdui-coverage-confirm-text { color:#f5d28c; font-size:11px; line-height:1.5; }
+    .mdui-coverage-confirm-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:9px; }
+    .mdui-small-btn.confirm-continue { background:#20a875; border-color:#20a875; color:#071b14; }
+    .mdui-small-btn { border:1px solid #344254; border-radius:5px; padding:5px 7px; font-size:9px; font-weight:bold; cursor:pointer; color:#dbe6f2; background:#263345; }
+    .mdui-small-btn:hover { background:#34465c; }
+    .mdui-small-btn.alt { background:transparent; color:#aab6c5; }
+    .mdui-small-btn.alt:hover { background:#26303d; }
+    @media (max-width: 420px) { #manga-downloader-ui { width:calc(100vw - 24px); right:12px; bottom:12px; } }
   `;
   document.head.appendChild(style);
 
@@ -576,8 +601,6 @@ function buildUI() {
     .mdui-retry-section { margin-bottom: 8px; }
     .mdui-retry-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 5px; }
     .mdui-head-btns { display: flex; gap: 4px; }
-    .mdui-small-btn { border: none; border-radius: 4px; padding: 3px 8px; font-size: 10px; font-weight: bold; cursor: pointer; color: #fff; background: #4b7bec; }
-    .mdui-small-btn.alt { background: #555; }
     .mdui-retry-item {
         position: relative; border: 1px solid #3a3a43; border-radius: 4px; background: #222; height: 100px;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -606,7 +629,7 @@ function buildUI() {
   uiContainer.id = 'manga-downloader-ui';
   uiContainer.innerHTML = `
     <div class="mdui-header">
-        <span>Manga Live Gallery Pro</span>
+        <span class="mdui-brand"><span class="mdui-brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.8c2.6-.8 5-.4 7 1.2v13c-2-1.6-4.4-2-7-1.2z"/><path d="M19 4.8c-2.6-.8-5-.4-7 1.2v13c2-1.6 4.4-2 7-1.2z"/></svg></span><span>Manga Live Gallery <small>PRO</small></span></span>
         <span class="mdui-header-actions">
             <span class="mdui-icon-btn" id="mdui-min-btn" title="Ciutkan">\u2212</span>
             <span class="mdui-icon-btn" id="mdui-close-btn" title="Tutup (klik ikon ekstensi untuk membuka lagi)">\u2715</span>
@@ -619,7 +642,12 @@ function buildUI() {
                 <select id="mdui-format" class="mdui-select">
                     <option value="domain_index">NamaWeb_page_1</option>
                     <option value="manga_page_index">manga_page_1</option>
+                    <option value="custom">Nama kustom</option>
                 </select>
+            </div>
+            <div class="mdui-row" id="mdui-custom-name-row" style="display:none;">
+                <span class="mdui-label">Nama file kustom</span>
+                <input id="mdui-custom-name" class="mdui-input" type="text" maxlength="80" placeholder="Contoh: One_Piece" autocomplete="off">
             </div>
             <div class="mdui-row">
                 <span class="mdui-label">Urutan Halaman</span>
@@ -632,8 +660,8 @@ function buildUI() {
                 </select>
             </div>
             <div class="mdui-controls-row">
-                <button id="mdui-refresh-btn" class="mdui-btn mdui-btn-refresh">\ud83d\udd04 REFRESH</button>
-                <button id="mdui-download-btn" class="mdui-btn mdui-btn-download">\ud83d\ude80 UNDUH (0) HALAMAN</button>
+                <button id="mdui-refresh-btn" class="mdui-btn mdui-btn-refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5l3 5"/></svg><span>REFRESH</span></button>
+                <button id="mdui-download-btn" class="mdui-btn mdui-btn-download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span id="mdui-download-label">UNDUH (0) HALAMAN</span></button>
             </div>
             <div class="mdui-selection-actions">
                 <span class="mdui-status" id="mdui-selection-count">Dipilih: 0/0</span>
@@ -643,10 +671,17 @@ function buildUI() {
                 </span>
             </div>
         </div>
-        <div class="mdui-gallery-container" style="background: #15151a;">
+        <div class="mdui-gallery-container">
             <span class="mdui-label" id="mdui-gallery-label">Gambar Terdeteksi di Layar (0):</span>
             <span class="mdui-status" id="mdui-status">Canvas: -</span>
             <span class="mdui-status" id="mdui-coverage"></span>
+            <div id="mdui-coverage-confirm" class="mdui-coverage-confirm" role="alertdialog" aria-modal="false" aria-labelledby="mdui-coverage-confirm-text" hidden>
+                <div id="mdui-coverage-confirm-text" class="mdui-coverage-confirm-text"></div>
+                <div class="mdui-coverage-confirm-actions">
+                    <button id="mdui-coverage-cancel" class="mdui-small-btn alt">Batal</button>
+                    <button id="mdui-coverage-continue" class="mdui-small-btn confirm-continue">Lanjut unduh</button>
+                </div>
+            </div>
             <div id="mdui-retry-section" class="mdui-retry-section" style="display: none;">
                 <div class="mdui-retry-head">
                     <span class="mdui-label" id="mdui-retry-label">Retry CORS (0)</span>
@@ -671,6 +706,8 @@ function buildUI() {
   retryGridEl = document.getElementById('mdui-retry-grid');
   retryLabelEl = document.getElementById('mdui-retry-label');
   retryAllBtn = document.getElementById('mdui-retry-all');
+  document.getElementById('mdui-coverage-cancel').addEventListener('click', () => resolveCoverageConfirm(false));
+  document.getElementById('mdui-coverage-continue').addEventListener('click', () => resolveCoverageConfirm(true));
 
   // Tombol per tile (retry / sembunyikan) lewat event delegation
   retryGridEl.addEventListener('click', (e) => {
@@ -709,6 +746,13 @@ function buildUI() {
   document.getElementById('mdui-select-none').addEventListener('click', () => setGallerySelection(false));
 
   const orderSelect = document.getElementById('mdui-order');
+  const formatSelect = document.getElementById('mdui-format');
+  const customNameRow = document.getElementById('mdui-custom-name-row');
+  const updateCustomNameVisibility = () => {
+    customNameRow.style.display = formatSelect.value === 'custom' ? 'flex' : 'none';
+  };
+  formatSelect.addEventListener('change', updateCustomNameVisibility);
+  updateCustomNameVisibility();
   orderSelect.value = orderMode;
   orderSelect.addEventListener('change', () => {
     orderMode = orderSelect.value;
@@ -721,6 +765,7 @@ function buildUI() {
       uiContent.style.display = 'flex';
       minBtn.textContent = '\u2212';
     } else {
+      resolveCoverageConfirm(false);
       uiContent.style.display = 'none';
       minBtn.textContent = '+';
     }
@@ -843,6 +888,7 @@ function renderRetryTiles() {
 
 // Tampilkan/sembunyikan panel. Data yang sudah terkumpul tetap tersimpan saat panel ditutup.
 function setPanelVisible(visible) {
+  if (!visible) resolveCoverageConfirm(false);
   panelVisible = visible;
   uiContainer.style.display = visible ? 'flex' : 'none';
   if (visible) {
@@ -851,6 +897,24 @@ function setPanelVisible(visible) {
     renderStatus();
     renderRetryTiles();
   }
+}
+
+function askCoverageConfirm(coverage, selectedCount) {
+  const panel = document.getElementById('mdui-coverage-confirm');
+  const message = document.getElementById('mdui-coverage-confirm-text');
+  message.textContent = `Baru ${coverage.captured} dari ${coverage.total} halaman terdeteksi. Belum tertangkap: ${coverage.text}. Halaman yang belum ada baru dirender saat dibuka di reader. Lanjut unduh ${selectedCount} gambar yang dipilih?`;
+  panel.hidden = false;
+  panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  return new Promise((resolve) => { coverageConfirmResolve = resolve; });
+}
+
+function resolveCoverageConfirm(confirmed) {
+  if (!coverageConfirmResolve) return;
+  const resolve = coverageConfirmResolve;
+  coverageConfirmResolve = null;
+  const panel = document.getElementById('mdui-coverage-confirm');
+  if (panel) panel.hidden = true;
+  resolve(confirmed);
 }
 
 // Dipanggil oleh background.js saat ikon ekstensi diklik
@@ -1242,7 +1306,12 @@ function updateGalleryUI() {
   const selectedCount = ready.filter(([, item]) => item.selected !== false).length;
   document.getElementById('mdui-selection-count').textContent = `Dipilih: ${selectedCount}/${ready.length}`;
   renderCoverage();
-  if (!isDownloading) downloadBtnEl.textContent = `\ud83d\ude80 UNDUH (${selectedCount}) HALAMAN`;
+  if (!isDownloading) setDownloadLabel(`UNDUH (${selectedCount}) HALAMAN`);
+}
+
+function setDownloadLabel(text) {
+  const label = document.getElementById('mdui-download-label');
+  if (label) label.textContent = text;
 }
 
 function setGallerySelection(selected) {
@@ -1272,11 +1341,7 @@ async function downloadAllFromGalleryCache() {
 
   const cov = getCoverage();
   if (cov && cov.missing.length > 0) {
-    const ok = window.confirm(
-      `Baru ${cov.captured} dari ${cov.total} halaman yang terdeteksi (belum: ${cov.text}).\n` +
-      `Halaman yang belum ada baru dirender situs saat dibuka di reader.\n\n` +
-      `Tetap unduh ${list.length} halaman?`
-    );
+    const ok = await askCoverageConfirm(cov, list.length);
     if (!ok) {
       downloadBtnEl.disabled = false;
       isDownloading = false;
@@ -1287,7 +1352,13 @@ async function downloadAllFromGalleryCache() {
 
   const nameFormat = document.getElementById('mdui-format').value;
   const domain = window.location.hostname.replace('www.', '');
-  const baseName = nameFormat === 'domain_index' ? `${domain}_page` : 'manga_page';
+  const customName = document.getElementById('mdui-custom-name').value
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').replace(/[. ]+$/g, '').trim();
+  const baseName = nameFormat === 'domain_index'
+    ? `${domain}_page`
+    : nameFormat === 'custom'
+      ? `${customName || 'manga'}_page`
+      : 'manga_page';
 
   console.log(`Memulai pengunduhan ${list.length} file dari memori pratinjau...`);
 
@@ -1307,7 +1378,7 @@ async function downloadAllFromGalleryCache() {
     a.click();
     uiContainer.removeChild(a);
 
-    downloadBtnEl.textContent = `\u23f3 ${i + 1}/${list.length}`;
+    setDownloadLabel(`${i + 1}/${list.length}`);
     await sleep(DOWNLOAD_DELAY_MS);
   }
 
